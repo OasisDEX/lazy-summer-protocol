@@ -1,0 +1,63 @@
+type InterestRate @entity(immutable: true) {
+  id: String!
+  type: String!
+  rate: BigDecimal!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  protocol: String!
+  token: Token!
+  productId: String!
+  dailyRateId: DailyInterestRate!
+  hourlyRateId: HourlyInterestRate!
+  weeklyRateId: WeeklyInterestRate!
+}
+
+type VaultState @entity {
+  # id = address
+  id: Bytes!
+  lastUpdateTimestamp: BigInt!
+  lastSharePrice: BigDecimal!
+}
+type Token @entity(immutable: true) {
+  id: Bytes!
+  address: Bytes!
+  symbol: String!
+  decimals: BigInt!
+  precision: BigInt!
+}
+
+type DailyInterestRate @entity {
+  id: ID!
+  date: BigInt!
+  sumRates: BigDecimal!
+  updateCount: BigInt!
+  averageRate: BigDecimal!
+  protocol: String!
+  token: Bytes!
+  productId: String!
+  interestRates: [InterestRate!]! @derivedFrom(field: "dailyRateId")
+} 
+
+type HourlyInterestRate @entity {
+  id: ID!
+  date: BigInt!
+  sumRates: BigDecimal!
+  updateCount: BigInt!
+  averageRate: BigDecimal!
+  protocol: String!
+  token: Bytes!
+  productId: String!
+  interestRates: [InterestRate!]! @derivedFrom(field: "hourlyRateId")
+}
+
+type WeeklyInterestRate @entity {
+  id: ID!
+  weekTimestamp: BigInt!  # Start of the week timestamp
+  sumRates: BigDecimal!
+  updateCount: BigInt!
+  averageRate: BigDecimal!
+  protocol: String!
+  token: Bytes!
+  productId: String!
+  interestRates: [InterestRate!]! @derivedFrom(field: "weeklyRateId")
+}
