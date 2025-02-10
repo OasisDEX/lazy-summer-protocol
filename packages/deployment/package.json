@@ -35,11 +35,13 @@
     "deploy:erc4626-ark": "REPORT_CONTRACT_SIZE=true hardhat run scripts/deploy-erc4626-ark.ts --network $NETWORK",
     "deploy:list": "hardhat ignition deployments",
     "deploy:status:arbitrum": "hardhat ignition status chain-42161",
+    "verify:mainnet": "hardhat ignition verify chain-1",
     "verify:arbitrum": "hardhat ignition verify chain-42161",
     "deploy:status:base": "hardhat ignition status chain-8453",
     "verify:base": "hardhat ignition verify chain-8453",
     "visualize:core": "hardhat ignition visualize ./ignition/modules/fleet.ts",
     "create-distributions-tx": "hardhat run scripts/governance/create-distributions-transaction-safe.ts --network $NETWORK",
+    "whitelist-vesting-wallets-tx": "hardhat run scripts/governance/whitelist-vesting-wallets-safe.ts --network $NETWORK",
     "generate-merkle-root": "tsx scripts/generate-merkle-root.ts"
   },
   "devDependencies": {

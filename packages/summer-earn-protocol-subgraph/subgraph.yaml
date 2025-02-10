@@ -7,8 +7,8 @@ dataSources:
     network: mainnet
     source:
       abi: HarborCommand
-      address: "0xc7C9d0BcbEE418a4012C67d83cBd291860416DF9"
-      startBlock: 21666153
+      address: "0x09eb323dBFECB43fd746c607A9321dACdfB0140F"
+      startBlock: 21728579
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -127,7 +127,13 @@ templates:
           receipt: true
         - event: FleetCommanderminimumBufferBalanceUpdated(uint256)
           handler: handleFleetCommanderMinimumBufferBalanceUpdated
-          receipt: true        
+          receipt: true      
+        - event: TipAccrued(uint256)
+          handler: handleTipAccrued
+          receipt: true
+        - event: TipRateUpdated(uint256)
+          handler: handleTipRateUpdated
+          receipt: true
       file: ./src/mappings/fleetCommander.ts
   - kind: ethereum/contract
     name: ArkTemplate
@@ -245,5 +251,8 @@ templates:
           receipt: true
         - event: RewardsDurationUpdated(indexed address,uint256)
           handler: handleRewardsDurationUpdated
+          receipt: true
+        - event: RewardPaid(indexed address,indexed address,uint256)
+          handler: handleRewardPaid
           receipt: true
       file: ./src/mappings/fleetCommander.ts

@@ -1,8 +1,10 @@
-import { Address } from '@graphprotocol/graph-ts'
+import { Address, BigDecimal, BigInt } from '@graphprotocol/graph-ts'
+import { VaultFee } from '../../generated/schema'
 import {
   RewardAdded,
-  RewardsDurationUpdated,
+  RewardPaid,
   RewardTokenRemoved,
+  RewardsDurationUpdated,
   Staked,
   Unstaked,
 } from '../../generated/templates/FleetCommanderRewardsManagerTemplate/FleetCommanderRewardsManager'
@@ -10,21 +12,30 @@ import {
   ArkAdded,
   ArkRemoved,
   Deposit as DepositEvent,
+  FleetCommander as FleetCommanderContract,
   FleetCommanderDepositCapUpdated,
   FleetCommanderMaxRebalanceOperationsUpdated,
-  FleetCommanderminimumBufferBalanceUpdated,
   FleetCommanderStakingRewardsUpdated,
   FleetCommanderWithdrawnFromArks,
+  FleetCommanderminimumBufferBalanceUpdated,
   Rebalanced,
+  TipAccrued,
+  TipRateUpdated,
   Withdraw as WithdrawEvent,
 } from '../../generated/templates/FleetCommanderTemplate/FleetCommander'
-import { ADDRESS_ZERO, BigIntConstants } from '../common/constants'
+import * as constants from '../common/constants'
+import { ADDRESS_ZERO, BigIntConstants, VaultFeeType } from '../common/constants'
 import {
   getOrCreateAccount,
   getOrCreateArk,
+  getOrCreatePosition,
   getOrCreateRewardsManager,
+  getOrCreateToken,
   getOrCreateVault,
 } from '../common/initializers'
+import { getTokenPriceInUSD } from '../common/priceHelpers'
+import * as utils from '../common/utils'
+import { formatAmount } from '../common/utils'
 import { getPositionDetails } from '../utils/position'
 import { getVaultDetails } from '../utils/vault'
 import { createDepositEventEntity } from './entities/deposit'
@@ -220,4 +231,62 @@ export function handleRewardsDurationUpdated(event: RewardsDurationUpdated): voi
   addOrUpdateVaultRewardRates(vault, event.address, event.params.rewardToken)
 
   rewardsManager.save()
+}
+
+export function handleTipAccrued(event: TipAccrued): void {
+  const vault = getOrCreateVault(event.address, event.block)
+  const vaultContract = FleetCommanderContract.bind(event.address)
+  const tipRate = vaultContract.tipRate()
+  const shares = event.params.tipAmount
+
+  const inputToken = getOrCreateToken(Address.fromString(vault.inputToken))
+  const inputTokenAmount = utils.readValue<BigInt>(
+    vaultContract.try_convertToAssets(shares),
+    constants.BigIntConstants.ZERO,
+  )
+  const inputTokenAmountNormalized = formatAmount(
+    inputTokenAmount,
+    BigInt.fromI32(inputToken.decimals),
+  )
+  const inputTokenPriceUSD = getTokenPriceInUSD(Address.fromString(vault.inputToken), event.block)
+  const inputTokenAmountNormalizedInUSD = inputTokenAmountNormalized.times(inputTokenPriceUSD.price)
+
+  const fee = new VaultFee(event.address.toHexString() + '-' + event.block.timestamp.toString())
+  fee.feeType = VaultFeeType.MANAGEMENT_FEE
+  fee.token = inputToken.id
+  fee.feePercentage = BigDecimal.fromString(tipRate.toString())
+  fee.outputTokenAmount = event.params.tipAmount
+  fee.inputTokenAmount = inputTokenAmount
+  fee.inputTokenAmountNormalizedInUSD = inputTokenAmountNormalizedInUSD
+  fee.blockNumber = event.block.number
+  fee.timestamp = event.block.timestamp
+  fee.vault = vault.id
+  fee.save()
+}
+
+export function handleTipRateUpdated(event: TipRateUpdated): void {
+  const vault = getOrCreateVault(event.address, event.block)
+  vault.tipRate = event.params.newTipRate
+  vault.save()
+}
+
+export function handleRewardPaid(event: RewardPaid): void {
+  const rewardsManager = getOrCreateRewardsManager(event.address)
+  const vault = getOrCreateVault(Address.fromString(rewardsManager.vault), event.block)
+
+  if (vault.rewardTokens.includes(event.params.rewardToken.toHexString())) {
+    const account = getOrCreateAccount(event.params.user.toHexString())
+    account.claimedSummerToken = account.claimedSummerToken.plus(event.params.reward)
+    account.claimedSummerTokenNormalized = account.claimedSummerTokenNormalized.plus(
+      formatAmount(event.params.reward, BigInt.fromI32(18)),
+    )
+    account.save()
+
+    const position = getOrCreatePosition(utils.formatPositionId(account.id, vault.id), event.block)
+    position.claimedSummerToken = position.claimedSummerToken.plus(event.params.reward)
+    position.claimedSummerTokenNormalized = position.claimedSummerTokenNormalized.plus(
+      formatAmount(event.params.reward, BigInt.fromI32(18)),
+    )
+    position.save()
+  }
 }

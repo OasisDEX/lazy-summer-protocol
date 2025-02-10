@@ -8,7 +8,7 @@ import {
   getOrCreateVault,
   getOrCreateVaultsPostActionSnapshots,
 } from '../../common/initializers'
-import { getAprForTimePeriod } from '../../common/utils'
+import { getAprForTimePeriod, updateProtocolTotalValueLockedUSD } from '../../common/utils'
 import { VaultDetails } from '../../types'
 import { getArkDetails } from '../../utils/ark'
 import { getVaultDetails } from '../../utils/vault'
@@ -36,11 +36,13 @@ export function updateVault(
         pricePerShareDiff.lt(BigDecimalConstants.TEN_BPS) &&
         vault.lastUpdatePricePerShare.gt(previousLastUpdatePricePerShare)
       ) {
-        vault.calculatedApr = getAprForTimePeriod(
+        const baseApr = getAprForTimePeriod(
           previousLastUpdatePricePerShare,
           vaultDetails.pricePerShare,
           deltaTime,
         )
+        const fee = vault.tipRate.toBigDecimal().div(BigDecimalConstants.WAD)
+        vault.calculatedApr = fee.plus(baseApr)
       }
     }
   }
@@ -55,6 +57,7 @@ export function updateVault(
   vault.rewardTokenEmissionsAmountsPerOutputToken =
     vaultDetails.rewardTokenEmissionsAmountsPerOutputToken
   vault.save()
+  updateProtocolTotalValueLockedUSD()
 }
 
 export function updateVaultAndArks(event: ethereum.Event, vaultId: string): void {

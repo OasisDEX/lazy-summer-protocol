@@ -20,7 +20,6 @@ import {
   UsageMetricsDailySnapshot,
   UsageMetricsHourlySnapshot,
   VaultDailySnapshot,
-  VaultFee,
   VaultHourlySnapshot,
   Vault as VaultStore,
   VaultWeeklySnapshot,
@@ -56,6 +55,8 @@ export function getOrCreateAccount(id: string): Account {
 
   if (!account) {
     account = new Account(id)
+    account.claimedSummerToken = constants.BigIntConstants.ZERO
+    account.claimedSummerTokenNormalized = constants.BigDecimalConstants.ZERO
     account.save()
 
     const protocol = getOrCreateYieldAggregator(BigInt.fromI32(0))
@@ -115,6 +116,8 @@ export function getOrCreatePosition(positionId: string, block: ethereum.Block): 
     position.inputTokenWithdrawals = constants.BigIntConstants.ZERO
     position.inputTokenDepositsNormalizedInUSD = constants.BigDecimalConstants.ZERO
     position.inputTokenWithdrawalsNormalizedInUSD = constants.BigDecimalConstants.ZERO
+    position.claimedSummerToken = constants.BigIntConstants.ZERO
+    position.claimedSummerTokenNormalized = constants.BigDecimalConstants.ZERO
     position.save()
   }
 
@@ -122,11 +125,11 @@ export function getOrCreatePosition(positionId: string, block: ethereum.Block): 
 }
 
 export function getOrCreateYieldAggregator(timestamp: BigInt): YieldAggregator {
-  let protocol = YieldAggregator.load(constants.PROTOCOL_ID)
+  let protocol = YieldAggregator.load(constants.Protocol.NAME)
   log.debug('getOrCreateYieldAggregator', [])
   if (!protocol) {
     log.debug('Creating new protocol', [])
-    protocol = new YieldAggregator(constants.PROTOCOL_ID)
+    protocol = new YieldAggregator(constants.Protocol.NAME)
     protocol.name = constants.Protocol.NAME
     protocol.slug = constants.Protocol.SLUG
     protocol.schemaVersion = '1.3.1'
@@ -188,7 +191,7 @@ export function getOrCreateFinancialDailySnapshots(block: ethereum.Block): Finan
 
   if (!financialMetrics) {
     financialMetrics = new FinancialsDailySnapshot(id.toString())
-    financialMetrics.protocol = constants.PROTOCOL_ID
+    financialMetrics.protocol = constants.Protocol.NAME
 
     financialMetrics.totalValueLockedUSD = constants.BigDecimalConstants.ZERO
     financialMetrics.dailySupplySideRevenueUSD = constants.BigDecimalConstants.ZERO
@@ -216,7 +219,7 @@ export function getOrCreateUsageMetricsDailySnapshot(
 
   if (!usageMetrics) {
     usageMetrics = new UsageMetricsDailySnapshot(id)
-    usageMetrics.protocol = constants.PROTOCOL_ID
+    usageMetrics.protocol = constants.Protocol.NAME
 
     usageMetrics.dailyActiveUsers = 0
     usageMetrics.cumulativeUniqueUsers = 0
@@ -244,7 +247,7 @@ export function getOrCreateUsageMetricsHourlySnapshot(
 
   if (!usageMetrics) {
     usageMetrics = new UsageMetricsHourlySnapshot(metricsID)
-    usageMetrics.protocol = constants.PROTOCOL_ID
+    usageMetrics.protocol = constants.Protocol.NAME
 
     usageMetrics.hourlyActiveUsers = 0
     usageMetrics.cumulativeUniqueUsers = 0
@@ -375,8 +378,12 @@ export function getOrCreateVault(vaultAddress: Address, block: ethereum.Block): 
     vault.name = utils.readValue<string>(vaultContract.try_name(), '')
     vault.symbol = utils.readValue<string>(vaultContract.try_symbol(), '')
 
-    vault.protocol = constants.PROTOCOL_ID
+    vault.protocol = constants.Protocol.NAME
     const config = vaultContract.getConfig()
+    vault.tipRate = utils.readValue<BigInt>(
+      vaultContract.try_tipRate(),
+      constants.BigIntConstants.ZERO,
+    )
     vault.depositCap = config.depositCap
     vault.depositLimit = config.depositCap
     vault.minimumBufferBalance = config.minimumBufferBalance
@@ -413,17 +420,7 @@ export function getOrCreateVault(vaultAddress: Address, block: ethereum.Block): 
     vault.createdTimestamp = block.timestamp
     vault.lastUpdateTimestamp = block.timestamp
 
-    const managementFeeId =
-      utils.enumToPrefix(constants.VaultFeeType.MANAGEMENT_FEE) + vaultAddress.toHexString()
-    const managementFee = constants.BigIntConstants.ZERO
-    utils.createFeeType(managementFeeId, constants.VaultFeeType.MANAGEMENT_FEE, managementFee)
-
-    const performanceFeeId =
-      utils.enumToPrefix(constants.VaultFeeType.PERFORMANCE_FEE) + vaultAddress.toHexString()
-    const performanceFee = constants.BigIntConstants.ZERO
-    utils.createFeeType(performanceFeeId, constants.VaultFeeType.PERFORMANCE_FEE, performanceFee)
-
-    vault.fees = [managementFeeId, performanceFeeId]
+    vault.tipRate = constants.BigIntConstants.ZERO
 
     vault.arksArray = []
     vault.aprValues = []
@@ -500,22 +497,6 @@ export function getOrCreateArk(
     ark.createdBlockNumber = block.number
     ark.createdTimestamp = block.timestamp
     ark.lastUpdateTimestamp = block.timestamp
-
-    const managementFeeId =
-      utils.enumToPrefix(constants.VaultFeeType.MANAGEMENT_FEE) + arkAddress.toHexString()
-    const managementFee = new VaultFee(managementFeeId)
-    managementFee.feeType = constants.VaultFeeType.MANAGEMENT_FEE
-    managementFee.feePercentage = constants.BigDecimalConstants.ZERO
-    managementFee.save()
-
-    const performanceFeeId =
-      utils.enumToPrefix(constants.VaultFeeType.PERFORMANCE_FEE) + arkAddress.toHexString()
-    const performanceFee = new VaultFee(performanceFeeId)
-    performanceFee.feeType = constants.VaultFeeType.PERFORMANCE_FEE
-    performanceFee.feePercentage = constants.BigDecimalConstants.ZERO
-    performanceFee.save()
-
-    ark.fees = [managementFeeId, performanceFeeId]
 
     // Initialize arrays
     ark.rewardTokens = []
