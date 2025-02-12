@@ -728,6 +728,7 @@ export function getOrCreatePositionHourlySnapshot(
       .times(vault.inputTokenPriceUSD!)
     snapshot.inputTokenDeposits = position.inputTokenDeposits
     snapshot.inputTokenWithdrawals = position.inputTokenWithdrawals
+    snapshot.inputTokenDepositsNormalized = position.inputTokenDepositsNormalized
     snapshot.inputTokenDepositsNormalizedInUSD = position.inputTokenDepositsNormalizedInUSD
     snapshot.inputTokenWithdrawalsNormalizedInUSD = position.inputTokenWithdrawalsNormalizedInUSD
     position.save()
@@ -769,6 +770,7 @@ export function getOrCreatePositionDailySnapshot(
       .times(vault.inputTokenPriceUSD!)
     snapshot.inputTokenDeposits = position.inputTokenDeposits
     snapshot.inputTokenWithdrawals = position.inputTokenWithdrawals
+    snapshot.inputTokenDepositsNormalized = position.inputTokenDepositsNormalized
     snapshot.inputTokenDepositsNormalizedInUSD = position.inputTokenDepositsNormalizedInUSD
     snapshot.inputTokenWithdrawalsNormalizedInUSD = position.inputTokenWithdrawalsNormalizedInUSD
   }
@@ -809,6 +811,7 @@ export function getOrCreatePositionWeeklySnapshot(
       .times(vault.inputTokenPriceUSD!)
     snapshot.inputTokenDeposits = position.inputTokenDeposits
     snapshot.inputTokenWithdrawals = position.inputTokenWithdrawals
+    snapshot.inputTokenDepositsNormalized = position.inputTokenDepositsNormalized
     snapshot.inputTokenDepositsNormalizedInUSD = position.inputTokenDepositsNormalizedInUSD
     snapshot.inputTokenWithdrawalsNormalizedInUSD = position.inputTokenWithdrawalsNormalizedInUSD
   }
